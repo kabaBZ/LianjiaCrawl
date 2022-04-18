@@ -98,6 +98,6 @@ ITEM_PIPELINES = {
 }
 
 REDIS_HOST = '1.15.233.110'
-REDIS_PORT = 6379
+REDIS_PORT = 3333
 REDIS_ENCODING = 'utf-8'
-REDIS_PARAMS = {'password' : 'kaba5643'}
+REDIS_PARAMS = {'password' : 'gjbxhmm!0416'}

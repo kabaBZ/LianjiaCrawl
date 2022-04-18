@@ -1,13 +1,10 @@
 import copy
 import scrapy
-import requests
-import re
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from crawlspider.items import CrawlspiderItem
 from scrapy_redis.spiders import RedisSpider
 from redis import Redis
-from selenium import webdriver
 import time
 
 class LagouwangSpider(RedisSpider):
@@ -27,7 +24,7 @@ class LagouwangSpider(RedisSpider):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
         }
     }
-    conn = Redis(host='1.15.233.110',port=6379,password='kaba5643')
+    conn = Redis(host='1.15.233.110',port=3333,password='gjbxhmm!0416',encoding='utf-8')
     start_urls = ['https://hz.lianjia.com/ershoufang/']
     redis_key = 'Queue'
     # link = LinkExtractor(allow=r'ershoufang\/pg\d\d$')
@@ -35,6 +32,7 @@ class LagouwangSpider(RedisSpider):
     #     Rule(link, callback='parse_item',follow=False),
     # )
     # url = 'https://hz.lianjia.com/ershoufang/'
+    area_list = ['xihu','qiantangqu','linpingqu','xiachengqu','gongshu','shangcheng','binjiang','yuhang','xiaoshan','tonglu1','chunan1','jiande','fuyang','linan']
 
     def parse_p(self,response):
         page_num = response.xpath('/html/body/div[4]/div[1]/div[2]/h2/span/text()').extract_first()
@@ -44,14 +42,16 @@ class LagouwangSpider(RedisSpider):
         page_num = int(page_num)
         # 售价：p  房型：l  面积：a
         p = response.meta['p']
+        l=0
         a = 0
         url = response.meta['url']
         # 售价>3000 添加房型标签
         if page_num > 3000:
+            print('大于3000添加l')
             for l in range(1,6):
                 # 链接加l标签
                 url = 'https://hz.lianjia.com/ershoufang/pg1p%dl%d/' % (p,l)
-                yield scrapy.Request(url,callback=self.parse_l,meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item},encoding = 'utf-8')
+                yield scrapy.Request(url,callback=self.parse_l,meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item})
         elif page_num > 0:
             page_num = int(page_num)
             i = page_num // 30 + 1
@@ -65,8 +65,7 @@ class LagouwangSpider(RedisSpider):
                 house_id = li.xpath('./@data-lj_action_housedel_id').extract_first()
                 item['house_id'] = house_id
                 url = 'https://hz.lianjia.com/ershoufang/' + house_id + '.html'
-                yield scrapy.Request(url, callback=self.parse_data,
-                                     meta={'url_list': url_list, 'url': url, 'p': p, 'l': l, 'a': a, 'item': item},encoding = 'utf-8')
+                yield scrapy.Request(url, callback=self.parse_data,meta={'url_list': url_list, 'url': url, 'p': p, 'l':l, 'a': a, 'item': item})
 
     def parse_l(self, response):
         page_num = response.xpath('/html/body/div[4]/div[1]/div[2]/h2/span/text()').extract_first()
@@ -81,10 +80,11 @@ class LagouwangSpider(RedisSpider):
         url = response.meta['url']
         # 售价>3000 添加面积标签
         if page_num > 3000:
+            print('大于3000添加a')
             for a in range(1, 6):
                 # 链接加a标签
                 url = 'https://hz.lianjia.com/ershoufang/pg1p%dl%da%d/' % (p, l,a)
-                yield scrapy.Request(url, callback=self.parse_a, meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item},encoding = 'utf-8')
+                yield scrapy.Request(url, callback=self.parse_a, meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item})
         elif page_num > 0:
             page_num = int(page_num)
             i = page_num // 30 + 1
@@ -99,7 +99,7 @@ class LagouwangSpider(RedisSpider):
                 item['house_id'] = house_id
                 url = 'https://hz.lianjia.com/ershoufang/' + house_id + '.html'
                 yield scrapy.Request(url, callback=self.parse_data,
-                                     meta={'url_list': url_list, 'url': url, 'p': p, 'l': l, 'a': a, 'item': item},encoding = 'utf-8')
+                                     meta={'url_list': url_list, 'url': url, 'p': p, 'l': l, 'a': a, 'item': item})
 
 
     def parse_a(self, response):
@@ -108,6 +108,9 @@ class LagouwangSpider(RedisSpider):
         url_list = response.meta['url_list']
         item = response.meta['item']
         page_num = int(page_num)
+        area_list = ['xihu', 'qiantangqu', 'linpingqu', 'xiachengqu', 'gongshu', 'shangcheng', 'binjiang', 'yuhang',
+                     'xiaoshan', 'tonglu1', 'chunan1', 'jiande', 'fuyang', 'linan']
+
         # 售价：p  房型：l  面积：a
         p = response.meta['p']
         l = response.meta['l']
@@ -117,12 +120,13 @@ class LagouwangSpider(RedisSpider):
         # url = url + 'a%d' % a
         # 售价>3000 添加location标签
         if page_num > 3000:
+            print('大于3000区域循环')
             # 进入区域循环
-            parse_location = 1
-            print(url)
-            print('进入区域循环')
-            # self.conn.lpush('Queue',url)
-            # yield item
+            for area in area_list:
+                url = url + str(area)
+                print('进入区域循环：')
+                print(url)
+                yield scrapy.Request(url, callback=self.parse_area, meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item})
         elif page_num > 0:
             page_num = int(page_num)
             i = page_num // 30 + 1
@@ -136,7 +140,42 @@ class LagouwangSpider(RedisSpider):
                 house_id = li.xpath('./@data-lj_action_housedel_id').extract_first()
                 item['house_id'] = house_id
                 url = 'https://hz.lianjia.com/ershoufang/' + house_id + '.html'
-                yield scrapy.Request(url, callback=self.parse_data,meta={'url_list': url_list, 'url': url, 'p': p, 'l': l, 'a': a, 'item': item},encoding = 'utf-8')
+                yield scrapy.Request(url, callback=self.parse_data,meta={'url_list': url_list, 'url': url, 'p': p, 'l': l, 'a': a, 'item': item})
+
+    def parse_area(self,response):
+        page_num = response.xpath('/html/body/div[4]/div[1]/div[2]/h2/span/text()').extract_first()
+        print(page_num)
+        url_list = response.meta['url_list']
+        item = response.meta['item']
+        page_num = int(page_num)
+        area_list = ['xihu', 'qiantangqu', 'linpingqu', 'xiachengqu', 'gongshu', 'shangcheng', 'binjiang', 'yuhang',
+                     'xiaoshan', 'tonglu1', 'chunan1', 'jiande', 'fuyang', 'linan']
+
+        # 售价：p  房型：l  面积：a
+        p = response.meta['p']
+        l = response.meta['l']
+        a = response.meta['a']
+        url = response.meta['url']
+        # 链接加location标签
+        # url = url + 'a%d' % a
+        # 售价>3000 添加location标签
+        if page_num > 3000:
+            print('OMGGGGGGGGGGGGGGGGGGGGG')
+        elif page_num > 0:
+            page_num = int(page_num)
+            i = page_num // 30 + 1
+            print(i)
+            for pg in range(1, i + 1):
+                url = url.replace('pg%d' % (pg - 1), 'pg%d' % pg)
+                print(url)
+                self.conn.lpush('Queue', url)
+            li_list = response.xpath('/html/body/div[4]/div[1]/ul/li')
+            for li in li_list:
+                house_id = li.xpath('./@data-lj_action_housedel_id').extract_first()
+                item['house_id'] = house_id
+                url = 'https://hz.lianjia.com/ershoufang/' + house_id + '.html'
+                yield scrapy.Request(url, callback=self.parse_data,meta={'url_list': url_list, 'url': url, 'p': p, 'l': l, 'a': a, 'item': item})
+
 
 
     def parse_data(self,response):
@@ -160,7 +199,7 @@ class LagouwangSpider(RedisSpider):
                 #添加p标签
                 url = 'https://hz.lianjia.com/ershoufang/pg1p%d/' % p
                 #城市>3000 添加售价标签
-                yield scrapy.Request(url,callback=self.parse_p,meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item},encoding = 'utf-8')
+                yield scrapy.Request(url,callback=self.parse_p,meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item})
         elif page_num > 0:
             print('小于3000大于0')
             li_list = response.xpath('/html/body/div[4]/div[1]/ul/li')
@@ -168,6 +207,6 @@ class LagouwangSpider(RedisSpider):
                 house_id = li.xpath('./@data-lj_action_housedel_id').extract_first()
                 item['house_id'] = house_id
                 url = 'https://hz.lianjia.com/ershoufang/' + house_id + '.html'
-                yield scrapy.Request(url,encoding = 'utf-8',callback=self.parse_data,meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item})
+                yield scrapy.Request(url,callback=self.parse_data,meta={'url_list':url_list,'url':url,'p':p,'l':l,'a':a,'item':item})
 
 
