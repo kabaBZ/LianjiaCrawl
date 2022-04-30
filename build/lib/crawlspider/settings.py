@@ -97,7 +97,7 @@ ITEM_PIPELINES = {
     'scrapy_redis.pipelines.RedisPipeline': 300
 }
 
-REDIS_HOST = '1.15.233.110'
+REDIS_HOST = '127.0.0.1'
 REDIS_PORT = 3333
 REDIS_ENCODING = 'utf-8'
-REDIS_PARAMS = {'password' : 'gjbxhmm!0416'}
+REDIS_PARAMS = {'password' : '9v,-PHaJ6mEJ*u>Y>rrM'}

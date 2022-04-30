@@ -1,2 +1,3 @@
-for i in range(1,1):
-    print('1')
+import random
+x = random.choice('12')
+print(x)
